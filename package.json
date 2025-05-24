@@ -3,6 +3,8 @@
 	"displayName": "Codenigma",
 	"description": "",
 	"version": "0.0.1",
+	"license": "Apache-2.0",
+	"repository": "https://github.com/vitalii-b/codenigma",
 	"engines": {
 		"vscode": "^1.100.0"
 	},
@@ -16,8 +18,8 @@
 	"contributes": {
 		"commands": [
 			{
-				"command": "codenigma.helloWorld",
-				"title": "Hello World"
+				"command": "codenigma.toggleState",
+				"title": "Toggle Codenigma"
 			}
 		]
 	},
