@@ -65,9 +65,7 @@ export class AppServer {
 		if (this.stopped)
 			return;
 
-		this.logger.error(`App server error`);
-		this.logger.error(e);
-
+		this.logger.error(`App server error`, e);
 	}
 
 	private onClose() {
@@ -94,7 +92,7 @@ export class AppServer {
 			if (!Number.isFinite(pid))
 				throw new Error(`Invalid child process id: ${pid}`);
 
-			this.logger.info("WS client connected ", pid);
+			this.logger.info("App client connected ", pid);
 			const webSocket = await new Promise<WebSocket>((resolve, reject) => {
 				this.wsServer.handleUpgrade(req, socket, head, (ws: WebSocket) => {
 					resolve(ws);
@@ -108,25 +106,23 @@ export class AppServer {
 				(p) => this.onWebSocketRequest(pid, p)
 			);
 			if (this.clients.has(pid)) {
-				this.logger.info("WS client exists, closing...", pid);
+				this.logger.info("App client exists, closing...", pid);
 				this.clients.get(pid)?.close();
 			}
 			this.clients.set(pid, client);
-			this.activeClientId = client.id;
+			this.toggleFirstClient(client);
 
 			webSocket.on("error", (e) => {
-				this.logger.error("WS client error ", pid);
-				this.logger.error(e as Error);
+				this.logger.error("App client error ", e, pid);
 				this.clients.get(pid) === client && this.clients.delete(pid);
 			});
 			webSocket.on("close", () => {
-				this.logger.info("WS client diconnected ", pid);
+				this.logger.info("App client diconnected ", pid);
 				this.clients.get(pid) === client && this.clients.delete(pid);
 			});
 		}
 		catch (e) {
-			this.logger.error("App server failed to accept WS connection");
-			this.logger.error(e as Error);
+			this.logger.error("App server failed to accept client connection", e);
 			socket.destroy();
 		}
 	}
@@ -174,8 +170,7 @@ export class AppServer {
 			});
 			await mcp.handleRequest(req, res, body);
 		} catch (error) {
-			this.logger.error('Error handling MCP request:');
-			this.logger.error(error as Error);
+			this.logger.error('Error handling MCP request:', error);
 			this.jsonRpcError(res, 500, {
 				code: -32603,
 				message: 'Internal server error',
@@ -220,8 +215,7 @@ export class AppServer {
 			return JSON.parse(bodyStr);
 		}
 		catch (e) {
-			this.logger.error("Failed to parse request body");
-			this.logger.error(e as Error);
+			this.logger.error("Failed to parse request body", e);
 		}
 
 		return undefined;
@@ -229,12 +223,43 @@ export class AppServer {
 
 	private async onWebSocketRequest(clientId: number, input: Transport.Payload): Promise<Transport.Payload> {
 
-		if (typeof input.focused === "boolean") {
-			this.logger.info("Active client ", clientId);
-			this.activeClientId = clientId;
+		if (typeof input.toggleState === "boolean") {
+			this.logger.info("Client toggleState ", clientId, input.toggleState);
+			if (input.toggleState) {
+				this.activeClientId = clientId;
+				this.untoggleOtherClients(clientId);
+				return {};
+			}
+			this.activeClientId = 0;
 			return {};
 		}
 
 		return {};
+	}
+
+	private toggleFirstClient(client: Transport) {
+
+		if (this.activeClientId)
+			return;
+		if (client.id !== process.pid)
+			return;
+
+		client.request({
+			toggleState: true
+		}).then((_) => {
+			this.activeClientId = client.id;
+		}).catch(e => this.logger.error("Failed to toggle first client", e));
+	}
+
+	private untoggleOtherClients(exceptClientId: number) {
+
+		for (const [clientId, client] of this.clients) {
+			if (clientId === exceptClientId)
+				continue;
+
+			client.request({
+				toggleState: false
+			}).catch(e => this.logger.error("Failed to untoggle other client", e));
+		}
 	}
 }

@@ -14,6 +14,7 @@ export class App implements AppContext {
 	private server!: AppServer;
 	private client!: AppClient;
 	private appServices = new Map<Function, unknown>();
+	private enabled = false;
 
 	get<T>(key: new () => T): T {
 
@@ -38,8 +39,9 @@ export class App implements AppContext {
 
 			this.status = this.regiserAppService(new Status(context));
 			this.server = new AppServer(this);
-			this.client = new AppClient(this, (connected) => this.onClientConnectionStateChanged(connected));
-
+			this.client = new AppClient(this);
+			this.client.on("disconnected", () => this.onClinetDisconnected());
+			this.client.on("toggle", (enabled) => this.onClientToggleState(enabled));
 
 			this.registerCommands(context);
 			this.subscribeWindowEvents(context);
@@ -49,8 +51,7 @@ export class App implements AppContext {
 			this.client.start();
 		}
 		catch (e) {
-			this.logger.error(`${Config.App.Name} activation failed`);
-			this.logger.error(e as Error);
+			this.logger.error(`${Config.App.Name} activation failed`, e);
 			throw e;
 		}
 
@@ -72,34 +73,48 @@ export class App implements AppContext {
 
 	private registerCommands(context: vscode.ExtensionContext) {
 
-		context.subscriptions.push(vscode.commands.registerCommand('codenigma.helloWorld', () => {
-			vscode.window.showInformationMessage('Hello World from Codenigma!');
-		}));
-
-	}
-
-	private subscribeWindowEvents(context: vscode.ExtensionContext) {
-
-		context.subscriptions.push(vscode.window.onDidChangeWindowState(
-			(e) => this.onWindowStateChanged(e))
+		context.subscriptions.push(vscode.commands.registerCommand(
+			Config.Commands.ToggleState,
+			() => this.onToggleStateCommand())
 		);
+
 	}
 
-	private onWindowStateChanged(e: vscode.WindowState) {
+	private subscribeWindowEvents(context: vscode.ExtensionContext) { }
 
-		if (e.focused)
-			this.client?.onFocused();
+	private onClinetDisconnected() {
+
+		this.enabled = false;
+		this.status?.setOffline();
+		this.server?.runServerOrVoid();
 	}
 
-	private onClientConnectionStateChanged(connected: boolean) {
+	private onClientToggleState(enabled: boolean) {
 
-		if (!connected) {
-			this.status?.setOffline();
-			this.server?.runServerOrVoid();
+		this.enabled = enabled;
+
+		if (enabled) {
+			this.status.setOnline();
 			return;
 		}
 
-		this.status?.setOnline();
+		this.status.setOffline();
+	}
+
+	private onToggleStateCommand() {
+
+		const newState = !this.enabled;
+
+		this.client?.toggleState(!this.enabled)
+			.then((_) => {
+				vscode.window.showInformationMessage(`${Config.App.Name} is ${newState ? "enabled" : "disabled"}.`);
+				this.enabled = newState;
+				newState ? this.status.setOnline() : this.status.setOffline();
+			})
+			.catch((e: Error) => {
+				vscode.window.showErrorMessage(`${Config.App.Name} toggle failed.`);
+				this.logger.error("Toggle state failed", e);
+			});
 	}
 }
 

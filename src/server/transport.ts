@@ -5,7 +5,7 @@ import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 export namespace Transport {
 
 	export interface Payload {
-		focused?: boolean;
+		toggleState?: boolean;
 		toolCall?: {
 			name: string;
 			args: Record<string, unknown>;
@@ -82,8 +82,7 @@ export class Transport {
 			msg = JSON.parse(str);
 		}
 		catch (e) {
-			this.logger.error("Failed to parse WS message", str);
-			this.logger.error(e as Error);
+			this.logger.error("Failed to parse client message", e, str);
 			return;
 		}
 

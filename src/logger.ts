@@ -35,12 +35,11 @@ export class Logger {
 		this.outputChannel.warn(this.formatMsg(msg), ...args);
 	}
 
-	error(msg: string | Error, ...args: unknown[]) {
+	error(msg: string, err: Error | unknown, ...args: unknown[]) {
 
-		if (typeof msg === "string")
-			return this.outputChannel.error(this.formatMsg(msg), ...args);
-
-		this.outputChannel.error(msg, ...args);
+		this.outputChannel.error(this.formatMsg(msg), ...args);
+		if (err instanceof Error)
+			this.outputChannel.error(err);
 	}
 
 	debug(msg: string, ...args: unknown[]) {

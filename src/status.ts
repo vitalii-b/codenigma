@@ -11,6 +11,8 @@ export class Status {
 			vscode.StatusBarAlignment.Left,
 			100
 		);
+		this.item.command = Config.Commands.ToggleState;
+
 		context.subscriptions.push(this.item);
 
 		this.setOffline();
@@ -19,13 +21,13 @@ export class Status {
 
 	setOffline() {
 
-		this.item.text = `$(warning) ${Config.App.Name}`;
-		this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
+		this.item.text = `$(circle-large-outline) ${Config.App.Name}`;
+		this.item.backgroundColor = undefined;
 	}
 
 	setOnline() {
 
-		this.item.text = `$(circle-large-outline) ${Config.App.Name}`;
+		this.item.text = `$(pass) ${Config.App.Name}`;
 		this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
 	}
 }

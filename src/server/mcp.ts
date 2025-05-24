@@ -67,8 +67,7 @@ export class McpWrapper {
 					}
 					catch (e) {
 						err = e as Error;
-						this.logger.error(`Tool call failed`, tool.name);
-						this.logger.error(err);
+						this.logger.error(`Tool call failed`, err, tool.name);
 					}
 
 					if (!res) {

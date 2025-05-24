@@ -1,3 +1,4 @@
+import { EventEmitter } from "events";
 import { WebSocket } from "ws";
 import { Logger } from "../logger";
 import { Config } from "../config";
@@ -5,7 +6,11 @@ import { Transport } from "./transport";
 import { getTools } from "../mcp/meta";
 import { AppContext } from "../context";
 
-export class AppClient {
+export class AppClient extends EventEmitter<{
+	connected: [],
+	disconnected: [],
+	toggle: [boolean],
+}> {
 
 	private readonly pid = process.pid;
 	private readonly ppid = process.ppid;
@@ -16,9 +21,9 @@ export class AppClient {
 	private reconnectInProgress = false;
 
 	constructor(
-		private readonly ctx: AppContext,
-		private readonly onConnectionStateChanged: (connected: boolean) => void,
+		private readonly ctx: AppContext
 	) {
+		super();
 		this.logger = ctx.get(Logger).child("CLIENT");
 	}
 
@@ -34,11 +39,14 @@ export class AppClient {
 		this.transport?.close();
 	}
 
-	onFocused() {
+	async toggleState(enabled: boolean): Promise<void> {
 
-		this.transport?.request({
-			focused: true
-		}).catch(e => this.logger.error(e));
+		if (!this.transport)
+			throw new Error("No transport");
+
+		await this.transport.request({
+			toggleState: enabled
+		});
 	}
 
 	private connect() {
@@ -70,7 +78,7 @@ export class AppClient {
 
 		this.transport = undefined;
 		this.numReconnects++;
-		this.onConnectionStateChanged(false);
+		this.emit("disconnected");
 
 		this.reconnectInProgress = true;
 		const timeout = Math.max(this.numReconnects * 1000, 3000);
@@ -87,7 +95,7 @@ export class AppClient {
 
 		this.numReconnects = 0;
 		this.logger.info(`App client is connected`);
-		this.onConnectionStateChanged(true);
+		this.emit("connected");
 	}
 
 	private onClose(transport: Transport) {
@@ -104,8 +112,7 @@ export class AppClient {
 		if (this.stopped)
 			return;
 
-		this.logger.error(`App client error`);
-		this.logger.error(e);
+		this.logger.error(`App client error`, e);
 		this.reconnect();
 	}
 
@@ -123,6 +130,11 @@ export class AppClient {
 					res
 				}
 			}
+		}
+
+		if (typeof payload.toggleState === "boolean") {
+			this.emit("toggle", payload.toggleState)
+			return {};
 		}
 
 		return {};

@@ -7,7 +7,9 @@ export namespace Config {
 		export const Host = "127.0.0.1";
 	}
 
-	export enum Commands {
+	const commandPrefix = "codenigma";
 
+	export enum Commands {
+		ToggleState = `${commandPrefix}.toggleState`,
 	}
 }
