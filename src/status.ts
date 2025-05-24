@@ -25,7 +25,7 @@ export class Status {
 
 	setOnline() {
 
-		this.item.text = `$(pass) ${Config.App.Name}`;
-		this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.prominentBackground");
+		this.item.text = `$(circle-large-outline) ${Config.App.Name}`;
+		this.item.backgroundColor = new vscode.ThemeColor("statusBarItem.warningBackground");
 	}
 }

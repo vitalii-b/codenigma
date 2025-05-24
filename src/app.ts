@@ -4,27 +4,41 @@ import { AppServer } from "./server/server";
 import { Config } from './config';
 import { AppClient } from './server/client';
 import { Status } from './status';
+import { initMcp } from './mcp/init';
+import { AppContext } from './context';
 
-export class App {
+export class App implements AppContext {
 
 	private logger!: Logger;
 	private status!: Status;
 	private server!: AppServer;
 	private client!: AppClient;
+	private appServices = new Map<Function, unknown>();
+
+	get<T>(key: new () => T): T {
+
+		const val = this.appServices.get(key);
+		if (!val)
+			throw new Error(`App service ${key.name} is not registered.`);
+
+		return val as T;
+	}
 
 	async activate(context: vscode.ExtensionContext) {
 
-		this.logger = new Logger(context);
+		this.logger = this.regiserAppService(new Logger(context));
 		this.logger.info(`Activating ${Config.App.Name}...`);
 		this.logger.debug(`Process id`, process.pid);
 		this.logger.debug(`Parent process id`, process.ppid);
 
-		vscode.workspace.workspaceFolders
-
 		try {
-			this.status = new Status(context);
-			this.server = new AppServer(this.logger);
-			this.client = new AppClient(this.logger, (connected) => this.onClientrConnectionStateChanged(connected));
+
+			this.logger.info("Initializing MCP");
+			initMcp();
+
+			this.status = this.regiserAppService(new Status(context));
+			this.server = new AppServer(this);
+			this.client = new AppClient(this, (connected) => this.onClientConnectionStateChanged(connected));
 
 
 			this.registerCommands(context);
@@ -51,6 +65,11 @@ export class App {
 		this.logger?.info(`${Config.App.Name} deactivation completed`);
 	}
 
+	private regiserAppService<T extends Object>(instance: T): T {
+		this.appServices.set(instance.constructor, instance)
+		return instance;
+	}
+
 	private registerCommands(context: vscode.ExtensionContext) {
 
 		context.subscriptions.push(vscode.commands.registerCommand('codenigma.helloWorld', () => {
@@ -72,7 +91,7 @@ export class App {
 			this.client?.onFocused();
 	}
 
-	private onClientrConnectionStateChanged(connected: boolean) {
+	private onClientConnectionStateChanged(connected: boolean) {
 
 		if (!connected) {
 			this.status?.setOffline();

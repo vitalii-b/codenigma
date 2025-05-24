@@ -2,20 +2,24 @@ import { WebSocket } from "ws";
 import { Logger } from "../logger";
 import { Config } from "../config";
 import { Transport } from "./transport";
+import { getTools } from "../mcp/meta";
+import { AppContext } from "../context";
 
 export class AppClient {
 
 	private readonly pid = process.pid;
 	private readonly ppid = process.ppid;
+	private readonly logger: Logger;
 	private transport?: Transport;
 	private stopped = false;
 	private numReconnects = 0;
 	private reconnectInProgress = false;
 
 	constructor(
-		private readonly logger: Logger,
+		private readonly ctx: AppContext,
 		private readonly onConnectionStateChanged: (connected: boolean) => void,
 	) {
+		this.logger = ctx.get(Logger).child("CLIENT");
 	}
 
 	start() {
@@ -48,7 +52,7 @@ export class AppClient {
 			this.pid,
 			this.logger,
 			ws,
-			(p) => this.onWwebSocketRequest(p)
+			(p) => this.onWebSocketRequest(p)
 		);
 
 		this.logger.info("App client connecting...", url);
@@ -105,8 +109,22 @@ export class AppClient {
 		this.reconnect();
 	}
 
-	private async onWwebSocketRequest(payload: Transport.Payload): Promise<Transport.Payload> {
+	private async onWebSocketRequest(payload: Transport.Payload): Promise<Transport.Payload> {
 
-		throw new Error("");
+		if (payload.toolCall) {
+			this.logger.info("tool call", payload.toolCall);
+			const tool = getTools().find(x => x.name === payload.toolCall?.name);
+			if (!tool)
+				throw new Error(`Unknown tool: ${payload.toolCall.name}`);
+			const res = await tool.cb(this.ctx, payload.toolCall.args);
+			this.logger.info("tool call result", res);
+			return {
+				toolCallResult: {
+					res
+				}
+			}
+		}
+
+		return {};
 	}
 }

@@ -3,10 +3,10 @@ import http from "http";
 import querystring from "querystring";
 import WebSocket, { WebSocketServer } from "ws";
 import { Logger } from "../logger";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { createMcpServer } from "../mcp/initializer";
 import { Config } from "../config";
 import { Transport } from "./transport";
+import { McpWrapper } from "./mcp";
+import { AppContext } from "../context";
 
 export class AppServer {
 
@@ -15,11 +15,14 @@ export class AppServer {
 	private httpServer!: http.Server;
 	private wsServer = new WebSocketServer({ noServer: true });
 	private activeClientId: number = 0;
+	private readonly logger: Logger;
 	private readonly clients = new Map<number, Transport>()
 
 	constructor(
-		private readonly logger: Logger
-	) { }
+		private readonly ctx: AppContext
+	) {
+		this.logger = ctx.get(Logger).child("SERVER");
+	}
 
 	async start() {
 
@@ -159,20 +162,17 @@ export class AppServer {
 				return;
 			}
 
-			this.logger.info(`MCP request - ${req.method} ${req.url} :: ${JSON.stringify(body)}`);
+			const transport = this.clients.get(this.activeClientId) ?? [...this.clients.values()][0];
+			if (!transport)
+				throw new Error("No active client found.");
 
-			const server = createMcpServer();
-			const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
-				sessionIdGenerator: undefined,
-			});
+			this.logger.info(`MCP request - ${req.method} ${req.url} :: ${JSON.stringify(body)}`);
+			const mcp = new McpWrapper(this.logger, transport);
 			res.on("close", () => {
 				this.logger.info(`MCP request - ${req.method} ${req.url} :: closed`);
-				transport.close();
-				server.close();
+				mcp.close();
 			});
-			await server.connect(transport);
-			await transport.handleRequest(req, res, body);
-
+			await mcp.handleRequest(req, res, body);
 		} catch (error) {
 			this.logger.error('Error handling MCP request:');
 			this.logger.error(error as Error);
@@ -232,6 +232,7 @@ export class AppServer {
 		if (typeof input.focused === "boolean") {
 			this.logger.info("Active client ", clientId);
 			this.activeClientId = clientId;
+			return {};
 		}
 
 		return {};

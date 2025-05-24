@@ -1,5 +1,20 @@
 import { WebSocket } from "ws";
 import { Logger } from "../logger";
+import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+
+export namespace Transport {
+
+	export interface Payload {
+		focused?: boolean;
+		toolCall?: {
+			name: string;
+			args: Record<string, unknown>;
+		}
+		toolCallResult?: {
+			res: CallToolResult;
+		}
+	}
+}
 
 interface Msg {
 	readonly id: number;
@@ -159,11 +174,5 @@ export class Transport {
 				reject(e);
 			},
 		};
-	}
-}
-export namespace Transport {
-
-	export interface Payload {
-		focused?: boolean;
 	}
 }
