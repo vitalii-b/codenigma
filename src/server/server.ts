@@ -2,11 +2,11 @@ import net from "net";
 import http from "http";
 import querystring from "querystring";
 import WebSocket, { WebSocketServer } from "ws";
-import { Logger } from "../logger";
-import { Config } from "../config";
+import { Logger } from "../services/logger";
+import { Config } from "../common/config";
 import { Transport } from "./transport";
 import { McpWrapper } from "./mcp";
-import { AppContext } from "../context";
+import { AppContext } from "../common/context";
 
 export class AppServer {
 
@@ -30,7 +30,7 @@ export class AppServer {
 		this.runServerOrVoid();
 	}
 
-	async stop() {
+	dispose() {
 
 		this.stopped = true;
 		this.httpServer?.close();

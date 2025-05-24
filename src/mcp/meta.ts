@@ -1,7 +1,7 @@
 
 import { objectOutputType, ZodRawShape, ZodTypeAny } from "zod";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { AppContext } from "../context";
+import { AppContext } from "../common/context";
 
 export interface ToolMeta {
 	readonly name: string;

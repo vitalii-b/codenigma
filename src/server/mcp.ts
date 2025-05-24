@@ -1,11 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Transport } from "./transport";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { Logger } from "../logger";
+import { Logger } from "../services/logger";
 import { IncomingMessage, ServerResponse } from "http";
 import { getTools } from "../mcp/meta";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import { Config } from "../config";
+import { Config } from "../common/config";
 
 export class McpWrapper {
 

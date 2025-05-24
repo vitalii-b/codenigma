@@ -1,5 +1,5 @@
 import { WebSocket } from "ws";
-import { Logger } from "../logger";
+import { Logger } from "../services/logger";
 import { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 export namespace Transport {

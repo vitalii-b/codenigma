@@ -1,10 +1,11 @@
 import { EventEmitter } from "events";
 import { WebSocket } from "ws";
-import { Logger } from "../logger";
-import { Config } from "../config";
+import { Logger } from "../services/logger";
+import { Config } from "../common/config";
 import { Transport } from "./transport";
 import { getTools } from "../mcp/meta";
-import { AppContext } from "../context";
+import { AppContext } from "../common/context";
+import { Status } from "../services/status";
 
 export class AppClient extends EventEmitter<{
 	connected: [],
@@ -15,6 +16,7 @@ export class AppClient extends EventEmitter<{
 	private readonly pid = process.pid;
 	private readonly ppid = process.ppid;
 	private readonly logger: Logger;
+	private readonly status: Status;
 	private transport?: Transport;
 	private stopped = false;
 	private numReconnects = 0;
@@ -25,6 +27,7 @@ export class AppClient extends EventEmitter<{
 	) {
 		super();
 		this.logger = ctx.get(Logger).child("CLIENT");
+		this.status = ctx.get(Status);
 	}
 
 	start() {
@@ -33,20 +36,22 @@ export class AppClient extends EventEmitter<{
 		this.connect();
 	}
 
-	stop() {
+	dispose() {
 
 		this.stopped = true;
 		this.transport?.close();
 	}
 
-	async toggleState(enabled: boolean): Promise<void> {
+	async toggleState(): Promise<void> {
 
 		if (!this.transport)
 			throw new Error("No transport");
 
+		const newState = !this.status.enabled;
 		await this.transport.request({
-			toggleState: enabled
+			toggleState: newState
 		});
+		this.status.enabled = newState;
 	}
 
 	private connect() {
@@ -79,6 +84,7 @@ export class AppClient extends EventEmitter<{
 		this.transport = undefined;
 		this.numReconnects++;
 		this.emit("disconnected");
+		this.status.enabled = false;
 
 		this.reconnectInProgress = true;
 		const timeout = Math.max(this.numReconnects * 1000, 3000);
@@ -133,7 +139,8 @@ export class AppClient extends EventEmitter<{
 		}
 
 		if (typeof payload.toggleState === "boolean") {
-			this.emit("toggle", payload.toggleState)
+			this.status.enabled = payload.toggleState;
+			this.emit("toggle", payload.toggleState);
 			return {};
 		}
 
